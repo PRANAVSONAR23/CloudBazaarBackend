@@ -2,6 +2,8 @@ import { NextFunction, Request, Response } from "express";
 import { Product } from "../models/product.model.js";
 import { BaseQuery, NewProductResponseBody } from "../types/type.js";
 import { rm } from "fs";
+import { myCache } from "../app.js";
+import { invalidateCache } from "../utils/features.js";
 
 export const newProduct = async (req: Request<{}, {}, NewProductResponseBody>, res: Response, next: NextFunction) => {
     try {
@@ -35,6 +37,8 @@ export const newProduct = async (req: Request<{}, {}, NewProductResponseBody>, r
             photo: photo.path
         });
 
+        // Invalidate cache for "latestProducts" and "adminProducts"
+        await invalidateCache({ product: true });
 
         res.status(201).json({
             message: "Product created successfully",
@@ -58,7 +62,16 @@ export const newProduct = async (req: Request<{}, {}, NewProductResponseBody>, r
 
 export const getLatestProducts = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const products = await Product.find({}).sort({ createdAt: -1 }).limit(5);
+        let products=[];
+
+        if(myCache.has("latestProducts")){
+            products=JSON.parse(myCache.get("latestProducts") as string);
+        }
+        else{
+            products = await Product.find({}).sort({ createdAt: -1 }).limit(5);
+            myCache.set("latestProducts",JSON.stringify(products));
+        
+        }
 
         res.status(200).json({
             message: "Latest products fetched successfully",
@@ -77,7 +90,18 @@ export const getLatestProducts = async (req: Request, res: Response, next: NextF
 
 export const getAllCategories = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const categories = await Product.distinct("category");
+ 
+        let categories;
+
+        if(myCache.has("categories")){
+            categories=JSON.parse(myCache.get("categories") as string);
+        }
+        else{
+            categories = await Product.distinct("category");
+            myCache.set("categories", JSON.stringify(categories));
+        }
+
+        
 
         res.status(200).json({
             message: "Categories fetched successfully",
@@ -97,7 +121,17 @@ export const getAllCategories = async (req: Request, res: Response, next: NextFu
 
 export const getAdminProducts = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const products = await Product.find({});
+
+        let products;
+
+        if(myCache.has("adminProducts")){
+            products=JSON.parse(myCache.get("adminProducts") as string);
+        }
+        else{
+            products = await Product.find({});
+            myCache.set("adminProducts", JSON.stringify(products));
+        }
+
 
         res.status(200).json({
             message: "Admin products fetched successfully",
@@ -119,7 +153,23 @@ export const getSingleProduct = async (req: Request, res: Response, next: NextFu
     try {
         const { id } = req.params;
 
-        const product = await Product.findById(id);
+        let product;
+
+        if(myCache.has(`product-${id}`)){
+            product=JSON.parse(myCache.get(`product-${id}`) as string);
+        }
+        else{
+            product = await Product.findById(id);
+            if (!product) {
+                res.status(404).json({
+                    message: "Product not found",
+                    status: false
+                });
+                return;
+            }
+            myCache.set(`product-${id}`, JSON.stringify(product));
+        }
+
 
         if (!product) {
             res.status(404).json({
@@ -184,6 +234,8 @@ export const updateProduct = async (req: Request, res: Response, next: NextFunct
         // Save the updated product
         await product.save();
 
+        await invalidateCache({ product: true });
+
         res.status(200).json({
             message: "Product updated successfully",
             status: true,
@@ -227,6 +279,8 @@ export const deleteProduct = async (req: Request, res: Response, next: NextFunct
 
         // Delete the product
         await product.deleteOne();
+
+        await invalidateCache({ product: true });
 
         res.status(200).json({
             message: "Product deleted successfully",
