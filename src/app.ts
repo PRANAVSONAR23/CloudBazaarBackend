@@ -37,6 +37,7 @@ app.use("/uploads", express.static("uploads"))
 
 app.use(errorMiddleware)
 
+
 app.listen(PORT,()=>{
     console.log(`express is running on port ${PORT}`)
 })
