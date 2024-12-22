@@ -6,6 +6,7 @@ import morgan from 'morgan'
 import userRoutes from './routes/user.js'
 import productRoutes from './routes/products.js'
 import orderRoutes from './routes/orders.js'
+import paymentRoutes from './routes/payments.js'
 
 import { connectDB } from './utils/features.js';
 import { errorMiddleware } from './middlewares/error.js';
@@ -31,7 +32,7 @@ app.use(morgan("dev"))
 app.use("/api/v1/user",userRoutes)
 app.use("/api/v1/product", productRoutes)
 app.use("/api/v1/order", orderRoutes)
-
+app.use("/api/v1/payment", paymentRoutes)
 
 app.use("/uploads", express.static("uploads"))
 
