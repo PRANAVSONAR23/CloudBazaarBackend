@@ -11,6 +11,8 @@ export const getDashboardStats = async (req, res, next) => {
         }
         else {
             const today = new Date();
+            const sixMonthsAgo = new Date();
+            sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
             const currentMonth = {
                 start: new Date(today.getFullYear(), today.getMonth(), 1),
                 end: today,
@@ -55,7 +57,14 @@ export const getDashboardStats = async (req, res, next) => {
                     $lte: lastMonth.end,
                 }
             });
-            const [currentMonthProducts, lastMonthProducts, currentMonthUsers, lastMonthUsers, currentMonthOrders, lastMonthOrders, productCount, userCount, allOrders] = await Promise.all([
+            const lastSixMonthsOrdersPromise = Order.find({
+                createdAt: {
+                    $gte: sixMonthsAgo,
+                    $lte: today,
+                }
+            });
+            const latestTransactionsPromise = Order.find({}).select(['orderItems', 'discount', 'total', 'status']).limit(4);
+            const [currentMonthProducts, lastMonthProducts, currentMonthUsers, lastMonthUsers, currentMonthOrders, lastMonthOrders, productCount, userCount, allOrders, lastSixMonthsOrders, categories, femaleUserCount, latestTransactions] = await Promise.all([
                 currentMonthProductsPromise,
                 lastMonthProductsPromise,
                 currentMonthUsersPromise,
@@ -64,7 +73,11 @@ export const getDashboardStats = async (req, res, next) => {
                 lastMonthOrdersPromise,
                 Product.countDocuments(),
                 User.countDocuments(),
-                Order.find({}).select("total")
+                Order.find({}).select("total"),
+                lastSixMonthsOrdersPromise,
+                Product.distinct("category"),
+                User.countDocuments({ gender: "female" }),
+                latestTransactionsPromise
             ]);
             const currentMonthRevenue = currentMonthOrders.reduce((total, order) => total + (order.total || 0), 0);
             const lastMonthRevenue = lastMonthOrders.reduce((total, order) => total + (order.total || 0), 0);
@@ -81,7 +94,49 @@ export const getDashboardStats = async (req, res, next) => {
                 user: userCount,
                 order: allOrders.length,
             };
-            stats = { ChangePercentage, count };
+            const orderMonthCounts = new Array(6).fill(0);
+            const orderMonthyRevenue = new Array(6).fill(0);
+            lastSixMonthsOrders.forEach((order) => {
+                const creationdDate = order.createdAt;
+                const monthDiff = today.getMonth() - creationdDate.getMonth();
+                if (monthDiff < 6) {
+                    orderMonthCounts[5 - monthDiff]++;
+                    orderMonthyRevenue[5 - monthDiff] += order.total;
+                }
+            });
+            const categoriesCountPromise = categories.map((category) => Product.countDocuments({ category }));
+            const categoriesCount = await Promise.all(categoriesCountPromise);
+            const categoryCount = [];
+            categories.forEach((category, i) => {
+                categoryCount.push({
+                    [category]: Math.round((categoriesCount[i] / productCount) * 100)
+                });
+            });
+            const ratio = {
+                male: userCount - femaleUserCount,
+                female: femaleUserCount,
+            };
+            const modifiedLatestTransactions = latestTransactions.map((transaction) => {
+                return {
+                    _id: transaction._id,
+                    discount: transaction.discount,
+                    amount: transaction.total,
+                    quantity: transaction.orderItems.length,
+                    status: transaction.status,
+                };
+            });
+            stats = {
+                ChangePercentage,
+                count,
+                chart: {
+                    order: orderMonthCounts,
+                    revenue: orderMonthyRevenue,
+                },
+                categoryCount,
+                ratio,
+                latestTransactions: modifiedLatestTransactions
+            };
+            myCache.set("admin-stats", JSON.stringify(stats));
         }
         res.status(200).json({
             sucesss: true,
