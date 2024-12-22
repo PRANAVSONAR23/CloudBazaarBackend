@@ -7,6 +7,7 @@ import userRoutes from './routes/user.js';
 import productRoutes from './routes/products.js';
 import orderRoutes from './routes/orders.js';
 import paymentRoutes from './routes/payments.js';
+import statsRoutes from './routes/stats.js';
 import { connectDB } from './utils/features.js';
 import { errorMiddleware } from './middlewares/error.js';
 config({
@@ -25,6 +26,7 @@ app.use("/api/v1/user", userRoutes);
 app.use("/api/v1/product", productRoutes);
 app.use("/api/v1/order", orderRoutes);
 app.use("/api/v1/payment", paymentRoutes);
+app.use("/api/v1/dashboard", statsRoutes);
 app.use("/uploads", express.static("uploads"));
 app.use(errorMiddleware);
 app.listen(PORT, () => {
