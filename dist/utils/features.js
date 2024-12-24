@@ -39,5 +39,5 @@ export const calculatePercentage = (currentMonth, lastMonth) => {
     if (lastMonth === 0) {
         return currentMonth * 100;
     }
-    return Math.round(((currentMonth - lastMonth) / lastMonth) * 100);
+    return Math.round(((currentMonth) / lastMonth) * 100);
 };

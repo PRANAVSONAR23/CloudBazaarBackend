@@ -132,7 +132,7 @@ export const getDashboardStats = async (req: Request, res: Response,next:NextFun
 
             lastSixMonthsOrders.forEach((order) => {
                 const creationdDate = order.createdAt;
-                const monthDiff= today.getMonth() - creationdDate.getMonth();
+                const monthDiff= (today.getMonth() - creationdDate.getMonth()+12)%12;
 
                 if(monthDiff<6){
                     orderMonthCounts[5-monthDiff]++;
@@ -191,6 +191,109 @@ export const getDashboardStats = async (req: Request, res: Response,next:NextFun
             stats,
         });
     } catch (error: any) {
+        res.status(500).json({ message: error.message });
+    }
+}
+
+
+export const getPieChart=async (req:Request,res:Response,next:NextFunction)=>{
+    try {
+        let pieChart;
+
+        if(myCache.has("admin-pie-chart")){
+            pieChart=JSON.parse(myCache.get("admin-pie-chart") as string);
+        }
+        else{
+            
+            const allOrderPromise=Order.find({}).select(["total", "discount", "subtotal", "tax", "shippingCharges"]);
+
+            const [
+                processingOrder,
+                shippedOrder,
+                deliveredOrder,
+                categories,
+                productCount,
+                productOutofStock,
+                allOrders,
+                allUser,
+                adminUser,
+                coustomerUser
+            ]=await Promise.all([
+                Order.countDocuments({status:"Processing"}),
+                Order.countDocuments({status:"Shipped"}),
+                Order.countDocuments({status:"Delivered"}),
+                Product.distinct('category'),
+                Product.countDocuments(),
+                Product.countDocuments({stock:0}),
+                allOrderPromise,
+                User.find({}).select(["dob"]),
+                User.countDocuments({role:"admin"}),
+                User.countDocuments({role:"user"})
+
+            ])
+
+            
+            const orderFullfillment={
+               processing: processingOrder,
+               shipping: shippedOrder,
+               delivered: deliveredOrder,
+            }
+
+            const categoriesCountPromise=categories.map((category)=>
+                Product.countDocuments({category})
+            );
+            const categoriesCount=await Promise.all(categoriesCountPromise);
+
+            const productCategories: Record<string,number>[] =[];
+
+            categories.forEach((category, i)=>{
+                productCategories.push({
+                    [category]:Math.round((categoriesCount[i]/productCount)*100)
+                })
+            })
+
+            const stockAvailability={
+                inStock:productCount-productOutofStock,
+                outOfStock:productOutofStock
+            }
+
+            const grossIncome=allOrders.reduce((total, order)=>total+(order.total || 0), 0);
+            const discount=allOrders.reduce((total, order)=>total+(order.discount || 0), 0);
+            const productionCost=allOrders.reduce((total, order)=>total+(order.shippingCharges || 0), 0);
+            const burnt=allOrders.reduce((total, order)=>total+(order.tax || 0), 0);
+            const marketingCost=Math.round(grossIncome*(30/100));
+            const netMargin=grossIncome-discount-productionCost-burnt-marketingCost;
+
+            const revenueDistribution={
+                netMargin,
+                discount,
+                productionCost,
+                burnt,
+                marketingCost
+            }
+
+            const adminCustomer={
+               admin:adminUser,
+               customer:coustomerUser
+            }
+
+            const usersAgeGroup={
+              teen:allUser.filter((i)=>i.age<20).length,
+              adult:allUser.filter((i)=>i.age>=20 && i.age<40).length,
+              old:allUser.filter((i)=>i.age>=40).length
+            }
+ 
+            pieChart={orderFullfillment,productCategories,stockAvailability,revenueDistribution,adminCustomer,usersAgeGroup}
+
+
+            myCache.set("admin-pie-chart", JSON.stringify(pieChart));
+        }
+
+        res.status(200).json({
+            sucesss: true,
+            pieChart,
+        });
+    } catch (error:any) {
         res.status(500).json({ message: error.message });
     }
 }
