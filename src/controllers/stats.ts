@@ -3,7 +3,7 @@ import { myCache } from "../app.js";
 import { Product } from "../models/product.model.js";
 import { User } from "../models/user.model.js";
 import { Order } from "../models/order.model.js";
-import { calculatePercentage } from "../utils/features.js";
+import { calculatePercentage, getChartData } from "../utils/features.js";
 
 
 export const getDashboardStats = async (req: Request, res: Response,next:NextFunction) => {
@@ -297,3 +297,64 @@ export const getPieChart=async (req:Request,res:Response,next:NextFunction)=>{
         res.status(500).json({ message: error.message });
     }
 }
+
+
+export const getBarChart = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        let barChart;
+
+        if (myCache.has("admin-bar-chart")) {
+            barChart = JSON.parse(myCache.get("admin-bar-chart") as string);
+        } else {
+            const today = new Date();
+
+            const sixMonthsAgo = new Date();
+            sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+            const twelveMonthsAgo = new Date();
+            twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+
+            const sixMonthsProductPromise = Product.find({
+                createdAt: {
+                    $gte: sixMonthsAgo,
+                    $lte: today,
+                },
+            }).select("createdAt")
+
+            const sixMonthsUserPromise = User.find({
+                createdAt: {
+                    $gte: sixMonthsAgo,
+                    $lte: today,
+                },
+            }).select("createdAt")
+
+            const twelveMonthsOrderPromise = Order.find({
+                createdAt: {
+                    $gte: twelveMonthsAgo,
+                    $lte: today,
+                },
+            }).select("createdAt")
+
+            const [products, users, orders] = await Promise.all([
+                sixMonthsProductPromise,
+                sixMonthsUserPromise,
+                twelveMonthsOrderPromise,
+            ]);
+
+           const productCount= getChartData({length:6,today,docArr:products})
+           const userCount= getChartData({length:6, today, docArr:users}) 
+           const orderCount= getChartData({length:12, today, docArr:orders})
+
+           barChart = {product:productCount,user:userCount,order:orderCount};
+
+            myCache.set("admin-bar-chart", JSON.stringify(barChart));
+        }
+
+        res.status(200).json({
+            success: true,
+            barChart,
+        });
+    } catch (error: any) {
+        res.status(500).json({ message: error.message });
+    }
+};
