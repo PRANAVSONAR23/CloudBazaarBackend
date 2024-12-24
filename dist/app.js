@@ -2,6 +2,7 @@ import express from 'express';
 import NodeCache from 'node-cache';
 import { config } from 'dotenv';
 import morgan from 'morgan';
+import Stripe from 'stripe';
 //importing routes
 import userRoutes from './routes/user.js';
 import productRoutes from './routes/products.js';
@@ -17,6 +18,7 @@ const mongoURI = process.env.MONGO_URI || "";
 connectDB(mongoURI);
 const app = express();
 const PORT = process.env.PORT || 4000;
+export const stripe = new Stripe("sds");
 export const myCache = new NodeCache();
 //middlewares
 app.use(express.json());
