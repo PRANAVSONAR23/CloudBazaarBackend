@@ -358,3 +358,49 @@ export const getBarChart = async (req: Request, res: Response, next: NextFunctio
         res.status(500).json({ message: error.message });
     }
 };
+
+
+export const getLineChart=async (req:Request,res:Response,next:NextFunction)=>{
+    try {
+        let lineChart;
+
+        if(myCache.has("admin-line-chart")){
+            lineChart=JSON.parse(myCache.get("admin-line-chart") as string);
+        }
+        else{
+            const today=new Date();
+
+            const twelveMonthsAgo=new Date();
+            twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth()-12);
+
+            const baseQuery={
+                createdAt:{
+                    $gte:twelveMonthsAgo,
+                    $lte:today
+                }
+            }
+
+            const [products, users, orders]=await Promise.all([
+                Product.find(baseQuery).select("createdAt"),
+                User.find(baseQuery).select("createdAt"),
+                Order.find(baseQuery).select(["createdAt", "total","discount"])
+            ])
+
+            const productCount= getChartData({length:12, today, docArr:products})
+            const userCount= getChartData({length:12, today, docArr:users})
+            const discount= getChartData({length:12, today, docArr:orders, property:"discount"})
+            const revenue= getChartData({length:12, today, docArr:orders, property:"total"})
+
+            lineChart={product:productCount,user:userCount,discount,revenue}
+
+            myCache.set("admin-line-chart", JSON.stringify(lineChart));
+        }
+
+        res.status(200).json({
+            sucesss: true,
+            lineChart,
+        });
+    } catch (error:any) {
+        res.status(500).json({ message: error.message });
+    }
+}

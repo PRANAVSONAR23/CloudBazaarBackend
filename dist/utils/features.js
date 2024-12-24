@@ -22,7 +22,7 @@ export const invalidateCache = async ({ product, order, admin, userId, orderId }
         myCache.del(orderKeys);
     }
     if (admin) {
-        myCache.del("admin");
+        myCache.del(["admin-stats", "admin-pie-chart", "admin-bar-chart", "admin-line-chart"]);
     }
 };
 export const reduceStock = async (orderItems) => {
@@ -52,13 +52,13 @@ export const getInventories = async ({ categories, productCount }) => {
     });
     return categoryCount;
 };
-export const getChartData = ({ length, docArr, today }) => {
+export const getChartData = ({ length, docArr, today, property }) => {
     const data = new Array(length).fill(0);
     docArr.forEach((i) => {
         const creationdDate = i.createdAt;
         const monthDiff = (today.getMonth() - creationdDate.getMonth() + 12) % 12;
         if (monthDiff < length) {
-            data[length - monthDiff - 1]++;
+            data[length - monthDiff - 1] += property ? i.discount : 1;
         }
     });
     return data;

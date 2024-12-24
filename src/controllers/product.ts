@@ -38,7 +38,7 @@ export const newProduct = async (req: Request<{}, {}, NewProductResponseBody>, r
         });
 
         // Invalidate cache for "latestProducts" and "adminProducts"
-        await invalidateCache({ product: true });
+        await invalidateCache({ product: true ,admin:true});
 
         res.status(201).json({
             message: "Product created successfully",
@@ -234,7 +234,7 @@ export const updateProduct = async (req: Request, res: Response, next: NextFunct
         // Save the updated product
         await product.save();
 
-        await invalidateCache({ product: true });
+        await invalidateCache({ product: true,admin:true });
 
         res.status(200).json({
             message: "Product updated successfully",
@@ -280,7 +280,7 @@ export const deleteProduct = async (req: Request, res: Response, next: NextFunct
         // Delete the product
         await product.deleteOne();
 
-        await invalidateCache({ product: true });
+        await invalidateCache({ product: true ,admin:true});
 
         res.status(200).json({
             message: "Product deleted successfully",
