@@ -3,6 +3,7 @@ import NodeCache from 'node-cache';
 import { config } from 'dotenv';
 import morgan from 'morgan';
 import Stripe from 'stripe';
+import cors from 'cors';
 //importing routes
 import userRoutes from './routes/user.js';
 import productRoutes from './routes/products.js';
@@ -23,6 +24,11 @@ export const myCache = new NodeCache();
 //middlewares
 app.use(express.json());
 app.use(morgan("dev"));
+app.use(cors({
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+}));
 //using routes 
 app.use("/api/v1/user", userRoutes);
 app.use("/api/v1/product", productRoutes);
