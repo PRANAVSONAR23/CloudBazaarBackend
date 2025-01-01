@@ -54,7 +54,7 @@ export const getLatestProducts = async (req, res, next) => {
             products = JSON.parse(myCache.get("latestProducts"));
         }
         else {
-            products = await Product.find({}).sort({ createdAt: -1 }).limit(5);
+            products = await Product.find({}).sort({ createdAt: -1 }).limit(4);
             myCache.set("latestProducts", JSON.stringify(products));
         }
         res.status(200).json({
