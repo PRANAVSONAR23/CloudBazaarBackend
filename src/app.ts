@@ -32,7 +32,7 @@ export const myCache = new NodeCache();
 app.use(express.json())
 app.use(morgan("dev"))
 app.use(cors({
-    origin: ["https://cloudbazaar.vercel.app", "http://localhost:5173"],
+    origin: ["https://cloudbazaarui.onrender.com", "http://localhost:5173"],
     methods: ["GET", "POST", "PUT", "DELETE"], 
     credentials: true,
 }))
