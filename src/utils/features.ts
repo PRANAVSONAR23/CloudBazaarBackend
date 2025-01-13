@@ -4,15 +4,7 @@ import { myCache } from "../app.js";
 import { Product } from "../models/product.model.js";
 import { Order } from "../models/order.model.js";
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary'
-import {Redis} from 'ioredis'
 
-
-export const connectRedis=(redisURI:string)=>{
-  const redis = new Redis(redisURI)
-  redis.on('connect', () => console.log('Connected to Redis'));
-  redis.on('error', (err) => console.log('Redis Client Error', err));
-
-}
 
 export const connectDB = (uri: string) => {
   mongoose.connect(uri, {

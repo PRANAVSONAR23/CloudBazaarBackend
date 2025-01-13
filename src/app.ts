@@ -12,7 +12,7 @@ import orderRoutes from './routes/orders.js'
 import paymentRoutes from './routes/payments.js'
 import statsRoutes from './routes/stats.js'
 
-import { connectDB, connectRedis } from './utils/features.js';
+import { connectDB } from './utils/features.js';
 import { errorMiddleware } from './middlewares/error.js';
 
 
@@ -21,10 +21,8 @@ config({
 })
 
 const mongoURI = process.env.MONGO_URI || "";
-const redisURI = process.env.REDIS_URI || "";
-
 connectDB(mongoURI)
-connectRedis(redisURI)
+
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
