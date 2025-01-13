@@ -3,6 +3,16 @@ import { InvalidateCacheProps, orderItemType } from "../types/type.js";
 import { myCache } from "../app.js";
 import { Product } from "../models/product.model.js";
 import { Order } from "../models/order.model.js";
+import { v2 as cloudinary, UploadApiResponse } from 'cloudinary'
+import {Redis} from 'ioredis'
+
+
+export const connectRedis=(redisURI:string)=>{
+  const redis = new Redis(redisURI)
+  redis.on('connect', () => console.log('Connected to Redis'));
+  redis.on('error', (err) => console.log('Redis Client Error', err));
+
+}
 
 export const connectDB = (uri: string) => {
   mongoose.connect(uri, {
@@ -99,4 +109,42 @@ export const getChartData = ({ length, docArr ,today,property}: FuncProp) => {
   return data;
 }
 
+const getBase64 = (file: Express.Multer.File) => {
+  return `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+};
 
+export const uploadToCloudinary = async (files: Express.Multer.File[]) => {
+  const promises = files.map(async (file) => {
+      return new Promise<UploadApiResponse>((resolve, reject) => {
+          // Convert buffer to base64 and upload directly to Cloudinary
+          const fileBase64 = getBase64(file);
+          cloudinary.uploader.upload(
+              fileBase64,
+              {
+                  resource_type: 'auto',
+                  folder: 'products', // Optional: organize uploads in folders
+              },
+              (error, result) => {
+                  if (error) return reject(error);
+                  resolve(result!);
+              }
+          );
+      });
+  });
+
+  const results = await Promise.all(promises);
+  return results
+};
+
+export const deleteFromCloudinary = async (publicIds: string[]) => {
+  const promises = publicIds.map((id) => {
+    return new Promise<void>((resolve, reject) => {
+      cloudinary.uploader.destroy(id, (error, result) => {
+        if (error) return reject(error);
+        resolve();
+      });
+    });
+  });
+
+  await Promise.all(promises);
+};

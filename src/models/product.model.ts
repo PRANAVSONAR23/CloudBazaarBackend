@@ -13,10 +13,16 @@ const productSchema = new Schema({
         type: Number,
         required: [true,"Please provide a stock"]
     },
-    photo: {
-        type: String,
-        required: [true,"Please provide a photo"]
-    },
+    photos: [{
+        public_id: {
+            type: String,
+            required: [true,"Please provide a public id"]
+        },
+        url: {
+            type: String,
+            required: [true,"Please provide url"]
+        },
+    }],
     category: {
         type: String,
         required: [true,"Please provide a category"]
