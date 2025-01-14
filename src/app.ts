@@ -4,6 +4,7 @@ import { config } from 'dotenv'
 import morgan from 'morgan'
 import Stripe from 'stripe'
 import cors from 'cors'
+import { v2 as cloudinary } from 'cloudinary'
 //importing routes
 import userRoutes from './routes/user.js'
 import productRoutes from './routes/products.js'
@@ -21,6 +22,13 @@ config({
 
 const mongoURI = process.env.MONGO_URI || "";
 connectDB(mongoURI)
+
+
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+})
 
 const app = express()
 
@@ -43,7 +51,7 @@ app.use("/api/v1/order", orderRoutes)
 app.use("/api/v1/payment", paymentRoutes)
 app.use("/api/v1/dashboard", statsRoutes)
 
-app.use("/uploads", express.static("uploads"))
+
 
 app.use(errorMiddleware)
 

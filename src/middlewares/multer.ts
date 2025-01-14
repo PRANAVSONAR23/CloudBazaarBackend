@@ -1,12 +1,3 @@
 import multer from "multer";
-
-const storage=multer.diskStorage({
-    destination:(req,file,cb)=>{
-        cb(null,'uploads')
-    },
-    filename:(req,file,cb)=>{
-        cb(null,`${Date.now()}-${file.originalname}`)
-    }
-})
-
-export const singleUpload=multer({storage}).single('photo')
+export const singleUpload=multer().single('photo')
+export const multipleUpload=multer().array('photos',5)      

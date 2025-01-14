@@ -3,7 +3,7 @@ import { Product } from "../models/product.model.js";
 import { BaseQuery, NewProductResponseBody } from "../types/type.js";
 import { rm } from "fs";
 import { myCache } from "../app.js";
-import { invalidateCache } from "../utils/features.js";
+import { deleteFromCloudinary, invalidateCache, uploadToCloudinary } from "../utils/features.js";
 
 export const newProduct = async (req: Request<{}, {}, NewProductResponseBody>, res: Response, next: NextFunction) => {
     try {
@@ -19,22 +19,39 @@ export const newProduct = async (req: Request<{}, {}, NewProductResponseBody>, r
             return ;
         }
 
-        const photo = req.file;
+        const photos = req.files as Express.Multer.File[] | undefined;
         // Check if photo is uploaded (if it's required)
-        if (!photo) {
+        if (!photos) {
             res.status(400).json({
-                message: "Product photo is required",
+                message: "Product photos is required",
                 status: false
             });
             return;
         }
+        if(photos.length<1){
+            res.status(400).json({
+                message: "Product photos is required",
+                status: false
+            });
+            return;
+        }
+
+        if(photos.length>5){
+            res.status(400).json({
+                message: "Maximum 5 photos",
+                status: false
+            });
+            return;
+        }
+
+        const photosURl=await uploadToCloudinary(photos)
 
         const product = await Product.create({
             name,
             price,
             stock,
             category: category.toLowerCase(),
-            photo: photo.path
+            photos: photosURl
         });
 
         // Invalidate cache for "latestProducts" and "adminProducts"
@@ -42,7 +59,8 @@ export const newProduct = async (req: Request<{}, {}, NewProductResponseBody>, r
 
         res.status(201).json({
             message: "Product created successfully",
-            status: true
+            status: true,
+            product
         });
        
 
@@ -198,7 +216,7 @@ export const updateProduct = async (req: Request, res: Response, next: NextFunct
     try {
         const { id } = req.params;
         const { name, price, stock, category } = req.body;
-        const photo = req.file;
+        const photos = req.files as Express.Multer.File[] | undefined;
 
         // Find the product by ID
         const product = await Product.findById(id);
@@ -211,18 +229,29 @@ export const updateProduct = async (req: Request, res: Response, next: NextFunct
         }
 
         // Handle photo update
-        if (photo) {
-            if (product.photo) {
-                // Remove old photo
-                rm(product.photo, (err) => {
-                    if (err) {
-                        console.error("Error deleting old photo:", err);
-                    } else {
-                        console.log("Old photo deleted");
-                    }
-                });
+        if (photos) {
+            const cloudinaryResults = await uploadToCloudinary(photos);
+            
+            // Delete old photos from Cloudinary
+            const ids = product.photos.map((p) => p.public_id);
+            await deleteFromCloudinary(ids);
+
+            // Remove all existing photos using MongoDB $set operator
+            await Product.findByIdAndUpdate(id, {
+                $set: {
+                    photos: cloudinaryResults.map(result => ({
+                        public_id: result.public_id,
+                        url: result.secure_url
+                    }))
+                }
+            });
+
+            // Refresh the product instance
+            const updatedProduct = await Product.findById(id);
+            if (!updatedProduct) {
+                throw new Error("Product not found after update");
             }
-            product.photo = photo.path;
+            product.photos = updatedProduct.photos;
         }
 
         // Update other fields
@@ -267,15 +296,9 @@ export const deleteProduct = async (req: Request, res: Response, next: NextFunct
         }
 
         // Remove the product photo if it exists
-        if (product.photo) {
-            rm(product.photo, (err) => {
-                if (err) {
-                    console.error("Error deleting product photo:", err);
-                } else {
-                    console.log("Product photo deleted");
-                }
-            });
-        }
+        const ids=product.photos.map((photo)=>photo.public_id)
+
+        await deleteFromCloudinary(ids);
 
         // Delete the product
         await product.deleteOne();
